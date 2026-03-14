@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BeatMap | Studio</title>
+    <link rel="icon" href="icone.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="navbar">
+      <div class="logo">BEAT<span>MAP</span></div>
+      <nav class="nav-links">
+        <a href="sobre.php">O Projeto</a>
+        <a href="auth.php" class="btn-nav">Começar Agora</a>
+      </nav>
+    </header>
+
+    <main class="hero">
+      <div class="hero-video-container">
+        <div class="gradient-overlay"></div>
+      </div>
+
+      <div class="music-visualizer-container">
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+        <div class="music-bar"></div>
+      </div>
+
+      <div class="hero-content">
+        <span class="tagline"></span>
+        <h1>
+          Onde o som ganha <br /><span class="highlight">visibilidade.</span>
+        </h1>
+        <p>
+          A plataforma definitiva para músicos independentes conectarem, criarem
+          e dominarem o palco digital.
+        </p>
+        <div class="hero-btns">
+          <a href="auth.php" class="btn-primary">Explorar Mapa</a>
+          <a href="sobre.php" class="btn-secondary">Saber Mais</a>
+        </div>
+      </div>
+    </main>
+
+    <section id="sobre" class="section-dark">
+      <div class="container">
+        <div class="section-grid">
+          <div class="text-block">
+            <h2>Não é apenas um mapa. <br />É o teu <span>palco.</span></h2>
+            <p>
+              Nós damos voz a todos. No BeatMap, o foco é os tesouros
+              desconhecidos da música, o crescimento artístico real.
+            </p>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <strong id="artist-count">A carregar...</strong> Músicos
+            </div>
+            <div class="stat-item"><strong>300+</strong> Concelhos</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-content">
+        <div class="logo">BEAT<span>MAP</span></div>
+        <p>© 2026 BeatMap Studio. Todos os direitos reservados.</p>
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script>
+      (async function () {
+        try {
+          const response = await fetch("/beatmap(mapa)/api/check_session.php", {
+            cache: "no-store",
+          });
+          const data = await response.json();
+
+          if (data && data.loggedIn) {
+            window.location.href = "/beatmap(mapa)/";
+          }
+        } catch (_) {}
+      })();
+    </script>
+  </body>
+</html>

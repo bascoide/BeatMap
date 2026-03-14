@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Criar Conta | BeatMap</title>
+    <link rel="icon" href="icone.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap");
+
+      :root {
+        --primary: #7331df;
+        --primary-hover: #5e26b8;
+        --bg-dark: #0a0a0a;
+        --card-bg: rgba(20, 20, 20, 0.95);
+        --input-bg: rgba(255, 255, 255, 0.03);
+        --border-color: rgba(255, 255, 255, 0.08);
+        --text-muted: #a0a0a0;
+        --text-light: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        color: var(--text-light);
+      }
+
+      .auth-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background:
+          radial-gradient(
+            circle at top right,
+            rgba(115, 49, 223, 0.15),
+            transparent 40%
+          ),
+          radial-gradient(
+            circle at bottom left,
+            rgba(115, 49, 223, 0.1),
+            transparent 40%
+          ),
+          url("fundo-do-site.gif");
+        background-size: cover;
+        background-position: center;
+        position: relative;
+      }
+
+      .auth-container::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(5, 5, 5, 0.85);
+        backdrop-filter: blur(8px);
+        z-index: 1;
+      }
+
+      .auth-card {
+        background: var(--card-bg);
+        padding: 40px;
+        border-radius: 24px;
+        border: 1px solid var(--border-color);
+        width: 100%;
+        max-width: 420px;
+        position: relative;
+        z-index: 2;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        animation: slideUp 0.6s ease-out;
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .logo-container {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .logo-text {
+        font-size: 28px;
+        font-weight: 900;
+        letter-spacing: -1px;
+        color: white;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .logo-text span {
+        color: var(--primary);
+      }
+
+      .auth-header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+
+      .auth-header h2 {
+        font-size: 24px;
+        margin: 0 0 8px 0;
+        font-weight: 700;
+      }
+
+      .auth-header p {
+        color: var(--text-muted);
+        font-size: 14px;
+        margin: 0;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+        position: relative;
+      }
+
+      .form-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+        margin-left: 2px;
+      }
+
+      .input-wrapper {
+        position: relative;
+      }
+
+      .form-group input {
+        width: 100%;
+        padding: 14px 16px;
+        background: var(--input-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        color: white;
+        font-size: 15px;
+        outline: none;
+        transition: all 0.3s ease;
+      }
+
+      .form-group input::placeholder {
+        color: rgba(255, 255, 255, 0.2);
+      }
+
+      .form-group input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(115, 49, 223, 0.15);
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .btn-submit {
+        width: 100%;
+        padding: 16px;
+        background: linear-gradient(
+          135deg,
+          var(--primary) 0%,
+          var(--primary-hover) 100%
+        );
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 10px;
+        box-shadow: 0 4px 12px rgba(115, 49, 223, 0.3);
+      }
+
+      .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(115, 49, 223, 0.4);
+      }
+
+      .btn-submit:active {
+        transform: translateY(0);
+      }
+
+      .auth-footer {
+        margin-top: 30px;
+        text-align: center;
+        font-size: 14px;
+        color: var(--text-muted);
+        border-top: 1px solid var(--border-color);
+        padding-top: 25px;
+      }
+
+      .auth-footer a {
+        color: white;
+        text-decoration: none;
+        font-weight: 600;
+        margin-left: 4px;
+        transition: color 0.2s;
+      }
+
+      .auth-footer a:hover {
+        color: var(--primary);
+        text-decoration: underline;
+      }
+
+      .alert {
+        padding: 12px 16px;
+        border-radius: 10px;
+        margin-bottom: 24px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        animation: fadeIn 0.3s ease;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .alert-success {
+        background: rgba(39, 174, 96, 0.15);
+        border: 1px solid rgba(39, 174, 96, 0.3);
+        color: #2ecc71;
+      }
+
+      .alert-error {
+        background: rgba(231, 76, 60, 0.15);
+        border: 1px solid rgba(231, 76, 60, 0.3);
+        color: #ff6b6b;
+      }
+
+      .alert-warning {
+        background: rgba(243, 156, 18, 0.15);
+        border: 1px solid rgba(243, 156, 18, 0.3);
+        color: #f1c40f;
+      }
+
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 20px;
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 13px;
+        transition: color 0.2s;
+        width: 100%;
+      }
+
+      .back-link:hover {
+        color: white;
+      }
+
+      .back-link span {
+        margin-right: 6px;
+        font-size: 16px;
+      }
+
+      /* Responsividade */
+      @media (max-width: 480px) {
+        .auth-card {
+          padding: 30px 24px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="auth-container">
+      <div class="auth-card">
+        <div class="logo" style="text-align: center; margin-bottom: 20px">
+          <a href="index.html" style="text-decoration: none; color: inherit"
+            >BEAT<span>MAP</span></a
+          >
+        </div>
+        <h2>Cria a tua <span>Conta.</span></h2>
+
+        <!-- Local onde a mensagem vai aparecer -->
+        <div id="message-box"></div>
+
+        <form action="register.php" method="POST">
+          <div class="form-group">
+            <label>nome de utilizador</label>
+            <input
+              type="text"
+              name="username"
+              placeholder="nome_de_utilizador"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label>E-mail</label>
+            <input
+              type="email"
+              name="email"
+              placeholder="exemplo@email.com"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label>Palavra-passe</label>
+            <input
+              type="password"
+              name="password"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label>Preview Música 1 (Spotify, YouTube, SoundCloud...)</label>
+            <input
+              type="url"
+              name="preview1"
+              placeholder="Link da música 1"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label>Preview Música 2 (opcional)</label>
+            <input type="url" name="preview2" placeholder="Link da música 2" />
+          </div>
+          <div class="form-group">
+            <label>Preview Música 3 (opcional)</label>
+            <input type="url" name="preview3" placeholder="Link da música 3" />
+          </div>
+          <button type="submit" class="btn-submit">Registar Agora</button>
+        </form>
+
+        <div class="auth-footer">
+          Já tens uma conta? <a href="login.html">Faz Login</a>
+        </div>
+
+        <a href="index.html" class="back-link">← Voltar ao Início</a>
+      </div>
+    </main>
+
+    <script src="script.js"></script>
+    <script>
+      // Verificar se existem parâmetros na URL (ex: ?status=success)
+      const urlParams = new URLSearchParams(window.location.search);
+      const status = urlParams.get("status");
+      const msgBox = document.getElementById("message-box");
+
+      if (status === "success") {
+        msgBox.innerHTML =
+          '<div class="alert alert-success">Conta criada com sucesso! <br> A redirecionar para o login...</div>';
+        msgBox.querySelector(".alert").style.display = "block";
+        // Redirecionar para login após 3 segundos
+        setTimeout(() => {
+          window.location.href = "login.html";
+        }, 3000);
+      } else if (status === "exists") {
+        msgBox.innerHTML =
+          '<div class="alert alert-error">Esse nome de utilizador ou email já existe.</div>';
+        msgBox.querySelector(".alert").style.display = "block";
+      } else if (status === "empty") {
+        msgBox.innerHTML =
+          '<div class="alert alert-warning">Por favor preenche todos os campos.</div>';
+      } else if (status === "password_length") {
+        msgBox.innerHTML =
+          '<div class="alert alert-error">A password deve ter pelo menos 6 caracteres.</div>';
+        msgBox.querySelector(".alert").style.display = "block";
+      }
+    </script>
+  </body>
+</html>

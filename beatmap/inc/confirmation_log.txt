@@ -1,0 +1,41 @@
+2025-11-14 10:02:24 - Email enviado com SUCESSO para: andre@gmail.com (andre)
+2025-11-16 18:05:58 - Email enviado com SUCESSO para: sarah@gmail.com (sarah)
+2025-11-16 18:22:31 - Email enviado com SUCESSO para: s@gmail.com (sarah)
+2025-11-16 18:30:48 - Email enviado com SUCESSO para: samuel@gmail.com (samuel)
+2025-12-09 22:42:54 - Email enviado com SUCESSO para: ola@gmail.com (ola)
+2025-12-10 15:15:08 - Email enviado com SUCESSO para: paulo@gmail.com (paulo)
+2025-12-15 13:40:52 - Email enviado com SUCESSO para: ola3@gmail.com (oisefinj)
+2026-01-16 09:58:34 - Email enviado com SUCESSO para: gabre@gmail.com (GGGago)
+2026-01-16 10:04:37 - Email enviado com SUCESSO para: vaso@gmail.com (vasco)
+2026-01-19 14:25:28 - Email enviado com SUCESSO para: andre2@gmail.com (andre)
+2026-01-19 15:57:06 - Email enviado com SUCESSO para: n@gmail.com (nunao)
+2026-01-19 16:37:51 - Email enviado com SUCESSO para: chacha@gmail.com (chacha1)
+2026-01-22 14:56:16 - Email enviado com SUCESSO para: injgeijfa@gmail.com (opaefpo)
+2026-01-22 15:03:57 - Email enviado com SUCESSO para: olaola@gmail.com (aaaaa)
+2026-01-22 16:06:06 - Email enviado com SUCESSO para: injfji@gmail.com (ijfji) - Link: http://localhost/beatmap/email/confirm_email.php?token=f2f2d28a256515362acbbffec573f1b3
+2026-01-23 16:00:34 - Email enviado com SUCESSO para: ivo@gmail.com (ivo) - Link: http://artists.beatmap/beatmap/email/confirm_email.php?token=c87cba4d0fd8f1289fb1d0613a2cb9fd
+2026-01-28 23:09:11 - Email enviado com SUCESSO para: vasco@gmail.com (oiaffiafihj) - Link: http://artists.beatmap/beatmap/email/confirm_email.php?token=54fc034dc5fc2f1ac27e4d93ec6e5c9b
+2026-01-28 23:10:26 - Email enviado com SUCESSO para: chacha@gmail.com (chacha) - Link: http://artists.beatmap/beatmap/email/confirm_email.php?token=bc23c602d106a390f7ffa5ac76d7e4c7
+2026-01-28 23:23:15 - Email enviado com SUCESSO para: 2busy@gmail.com (2busy) - Link: http://artists.beatmap/email/confirm_email.php?token=2bea170b53ca31c7f4dfda76768e5355
+2026-01-29 00:02:43 - Email enviado com SUCESSO para: chacha@gmail.com (chacha) - Link: http://artists.beatmap/email/confirm_email.php?token=cff733133c500bc268a348579025cc28
+2026-01-29 00:29:38 - Email enviado com SUCESSO para: bervs@ga.com (srvgaef) - Link: http://artists.beatmap/email/confirm_email.php?token=caa90dd6582c01f5c4406d098c6ed812
+2026-01-29 16:34:41 - Email enviado com SUCESSO para: ivo@gmail.com (ivo) - Link: http://artists.beatmap/email/confirm_email.php?token=0ce693eac3170c5b139d1d70627b98b5
+2026-01-29 16:58:41 - Email enviado com SUCESSO para: vasco2@gmail.com (vasco) - Link: http://artists.beatmap/email/confirm_email.php?token=210de39e6a2d41e2f9ab41c853335572
+2026-02-19 13:21:15 - Email enviado com SUCESSO para: tiagao@gmail.com (nevez) - Link: http://beatmap.site/email/confirm_email.php?token=44632433ed8d92d02e37f1b80fde51c2
+2026-02-21 18:58:17 - Email enviado com SUCESSO para: azeite@gmail.com (generaltorres) - Link: http://beatmap.site/email/confirm_email.php?token=8951e1b1a3bca86111bdefe8ecaae153
+2026-02-22 16:18:38 - Email enviado com SUCESSO para: olaolaolaola@gmail.com (olaola) - Link: http://beatmap.site/email/confirm_email.php?token=8bfb473e64ba44995e8a604aa9f78529
+2026-02-22 17:28:03 - Email enviado com SUCESSO para: paulinho@gmail.com (paulinho) - Link: http://beatmap.site/email/confirm_email.php?token=2de2ed344c624ebf9c02024dde0d3d59
+2026-02-22 18:29:29 - Email enviado com SUCESSO para: olaolaola@gmail.com (aaaaaa) - Link: http://beatmap.site/email/confirm_email.php?token=58a0c711e865df98dfa7210ba8dfb9bd
+2026-02-22 22:57:21 - Email enviado com SUCESSO para: bbb@gmail.com (saraha) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=e24fbce3479ba27d053253ef3ca75061
+2026-02-22 23:10:25 - Email enviado com SUCESSO para: pedrao@gmail.com (pedrao) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=272898845f26ea7a2358f7ad79764e5b
+2026-02-24 11:18:35 - Email enviado com SUCESSO para: AAAAAAAAAA@gmail.com (htboscpa) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=72a73aa71ec459e4b80f3392111d95fb
+2026-02-24 20:59:56 - ERRO Reset Email: SMTP Error: data not accepted.
+2026-02-26 00:17:04 - Email enviado com SUCESSO para: jfaooifa@gmail.com (olaola) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=534c94ad918e667f9b6d4ee50213c741
+2026-02-26 09:42:16 - Email enviado com SUCESSO para: filipe@gmail.com (filipe) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=809c7dcb34cfde416f6d9568bee6e647
+2026-03-02 16:11:52 - Email enviado com SUCESSO para: nunao@gmail.com (nuno) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=f92f256fffe1113601a41a7dc0f53841
+2026-03-03 11:16:14 - Email enviado com SUCESSO para: billie@gmail.com (billie) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=046a7c6fc63fea4b43bb765ee7d68360
+2026-03-05 10:39:04 - Email enviado com SUCESSO para: thx@gmail.com (ThxSoMch) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=0e2e876a69ca2bc72dbe9b076e49480d
+2026-03-05 15:20:51 - Email enviado com SUCESSO para: brunopicadeour@rutasys.com (brunopicadeouro) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=5468d3f252d279d0a226ec77fbb7b637
+2026-03-05 16:20:34 - Email enviado com SUCESSO para: aurea@gmail.com (Aurea) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=0f9bbfe6b74e50e40c1cf9bc8ee60bef
+2026-03-12 11:31:44 - Email enviado com SUCESSO para: aurea@gmail.com (aurea) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=0d09da4683db1b84342ec882184b8c3d
+2026-03-12 12:42:26 - Email enviado com SUCESSO para: aurea@gmail.com (Aurea) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=cdbbdfaec4dffcbc9ba91b562341d90b

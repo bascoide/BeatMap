@@ -1,0 +1,74 @@
+[
+  {
+    "nome": "Aveiro",
+    "codigo_distrito": "0"
+  },
+  {
+    "nome": "Beja",
+    "codigo_distrito": "1"
+  },
+  {
+    "nome": "Braga",
+    "codigo_distrito": "2"
+  },
+  {
+    "nome": "Bragança",
+    "codigo_distrito": "3"
+  },
+  {
+    "nome": "Castelo Branco",
+    "codigo_distrito": "4"
+  },
+  {
+    "nome": "Coimbra",
+    "codigo_distrito": "5"
+  },
+  {
+    "nome": "Évora",
+    "codigo_distrito": "6"
+  },
+  {
+    "nome": "Faro",
+    "codigo_distrito": "7"
+  },
+  {
+    "nome": "Guarda",
+    "codigo_distrito": "8"
+  },
+  {
+    "nome": "Leiria",
+    "codigo_distrito": "9"
+  },
+  {
+    "nome": "Lisboa",
+    "codigo_distrito": "10"
+  },
+  {
+    "nome": "Portalegre",
+    "codigo_distrito": "11"
+  },
+  {
+    "nome": "Porto",
+    "codigo_distrito": "12"
+  },
+  {
+    "nome": "Santarém",
+    "codigo_distrito": "13"
+  },
+  {
+    "nome": "Setúbal",
+    "codigo_distrito": "14"
+  },
+  {
+    "nome": "Viana do Castelo",
+    "codigo_distrito": "15"
+  },
+  {
+    "nome": "Vila Real",
+    "codigo_distrito": "16"
+  },
+  {
+    "nome": "Viseu",
+    "codigo_distrito": "17"
+  }
+]

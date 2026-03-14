@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mapa | Beatmap</title>
+    <link rel="icon" href="icone.jpg" />
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Navbar Superior -->
+    <nav class="navbar">
+      <button class="menu-btn" id="menuToggle">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+      </button>
+      <div class="logo">BEAT<span>MAP</span></div>
+      <div class="nav-search-container">
+        <div class="search-top-row">
+          <div class="search-box-sidebar nav-search-box">
+            <span class="search-icon" aria-hidden="true"></span>
+            <input
+              type="text"
+              id="cityInput"
+              placeholder="Ex: Lisboa, Porto, Braga..."
+              autocomplete="off"
+            />
+            <button
+              type="button"
+              id="clearSearchBtn"
+              class="clear-search-btn"
+              title="Limpar pesquisa"
+              aria-label="Limpar pesquisa"
+            >
+              ✕
+            </button>
+          </div>
+          <div
+            class="search-mode-switch"
+            id="searchModeSwitcher"
+            data-mode="location"
+          >
+            <span class="search-mode-label">Local</span>
+            <label
+              class="switch"
+              title="Alternar pesquisa por local ou género musical"
+            >
+              <input
+                type="checkbox"
+                id="searchModeToggle"
+                aria-label="Alternar pesquisa por local ou género musical"
+              />
+              <span class="slider round"></span>
+            </label>
+            <span class="search-mode-label">Género Musical</span>
+          </div>
+        </div>
+        <div
+          class="results-container"
+          id="resultsContainer"
+          role="listbox"
+        ></div>
+      </div>
+      <div class="nav-right">
+        <div class="private-inbox" id="privateInbox" hidden>
+          <button
+            class="private-inbox-btn"
+            id="privateInboxBtn"
+            title="Mensagens privadas"
+            aria-label="Abrir mensagens privadas"
+            aria-expanded="false"
+          >
+            ✉
+            <span
+              class="private-inbox-badge"
+              id="privateInboxBadge"
+              aria-live="polite"
+              hidden
+              >0</span
+            >
+          </button>
+          <div class="private-inbox-dropdown" id="privateInboxDropdown">
+            <div class="private-inbox-header" id="privateInboxHeader">
+              Mensagens privadas
+            </div>
+            <div class="private-inbox-list" id="privateInboxList"></div>
+          </div>
+        </div>
+        <!-- Novo Menu de Conta -->
+        <div class="account-menu" id="accountMenu">
+          <button class="account-btn" id="accountBtn" title="Minha Conta">
+            <span id="accountIcon">👤</span>
+          </button>
+          <div class="account-dropdown" id="accountDropdown">
+            <!-- Conteúdo dinâmico via JS -->
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Interruptor de Camadas (Concelhos / Distritos) -->
+    <div class="layer-switcher" id="layerSwitcher" data-layer="municipios">
+      <span class="layer-label layer-municipios">Concelhos</span>
+      <label class="switch" title="Trocar entre concelhos e distritos">
+        <input
+          type="checkbox"
+          id="layerToggle"
+          aria-label="Trocar entre concelhos e distritos"
+        />
+        <span class="slider round"></span>
+      </label>
+      <span class="layer-label layer-distritos">Distritos</span>
+    </div>
+
+    <!-- Sidebar (Painel Lateral) -->
+    <div class="sidebar" id="sidebar">
+      <!-- Painel de Informações (Oculto por padrão) -->
+      <div class="sidebar-info" id="sidebarInfo" style="display: none">
+        <div class="info-image-container" id="cityImageContainer">
+          <img id="cityImage" src="" alt="Foto da cidade" />
+        </div>
+        <div class="info-header">
+          <div class="info-title" id="cityName">Cidade</div>
+          <button class="close-btn" id="closeSidebarInfo">&times;</button>
+        </div>
+        <div class="info-content">
+          <div id="cityDetails"></div>
+          <div class="coordinates">
+            <span id="cityLat">Lat: --</span>
+            <span id="cityLng">Lng: --</span>
+          </div>
+        </div>
+
+        <!-- Lista de Artistas -->
+        <div
+          id="councilArtistsSection"
+          class="artists-section"
+          style="display: none"
+        >
+          <h4>Artistas Registados</h4>
+          <div
+            id="artistsFilters"
+            class="artists-filters"
+            style="display: none"
+          >
+            <div class="artist-filter-group">
+              <label for="artistSortInput">Ordenar por</label>
+              <select id="artistSortInput" class="artist-filter-combobox">
+                <option value="aleatorio" selected>Aleatório</option>
+                <option value="popularidade">Popularidade</option>
+                <option value="recentes">Mais recentes</option>
+              </select>
+            </div>
+
+            <div class="artist-filter-group">
+              <label for="artistGenreInput">Género musical</label>
+              <div class="artist-genre-field" id="artistGenreField">
+                <input
+                  id="artistGenreInput"
+                  class="artist-filter-combobox"
+                  placeholder="Todos os géneros"
+                  autocomplete="off"
+                />
+                <span class="artist-genre-toggle-icon" aria-hidden="true"
+                  >▾</span
+                >
+                <button
+                  type="button"
+                  id="artistGenreClearBtn"
+                  class="artist-genre-clear-btn"
+                  aria-label="Limpar género selecionado"
+                  title="Limpar género"
+                  hidden
+                >
+                  ×
+                </button>
+                <div
+                  id="artistGenreDropdown"
+                  class="artist-genre-dropdown"
+                  hidden
+                >
+                  <div id="artistGenreDropdownList"></div>
+                  <div
+                    id="artistGenreDropdownEmpty"
+                    class="artist-genre-dropdown-empty"
+                    hidden
+                  >
+                    Nenhum género encontrado
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="artistsList" class="artists-list"></div>
+        </div>
+      </div>
+
+      <!-- Painel de Detalhes do Artista -->
+      <div
+        id="artistDetailsPanel"
+        class="artist-details-panel"
+        style="display: none"
+      >
+        <div class="artist-header-nav">
+          <button id="backToCouncilBtn" class="back-btn">
+            <span class="arrow">←</span> Voltar
+          </button>
+        </div>
+        <div class="artist-content-full">
+          <!-- Conteúdo preenchido via JS -->
+        </div>
+      </div>
+
+      <!-- Área para conteúdo extra do menu se necessário -->
+      <div class="sidebar-content">
+        <div class="sidebar-footer">
+          <p>© 2026 BeatMap Studio</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="map-container">
+      <div id="map"></div>
+
+      <div class="legend-dock" id="legendDock">
+        <button
+          class="legend-toggle-btn"
+          id="legendToggle"
+          title="Mostrar/ocultar legenda"
+          aria-label="Ocultar legenda"
+          aria-expanded="true"
+        >
+          <i class="arrow-icon">▶</i>
+        </button>
+
+        <!-- Legenda para concelhos -->
+        <div class="municipios-legend" id="municipiosLegend">
+          <h4>Distritos de Portugal</h4>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #9c27b0"></div>
+            <span>Lisboa</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #5c6bc0"></div>
+            <span>Porto</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #2196f3"></div>
+            <span>Aveiro</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #42a5f5"></div>
+            <span>Braga</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #5c6bc0"></div>
+            <span>Bragança</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #29b6f6"></div>
+            <span>Coimbra</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #26c6da"></div>
+            <span>Setúbal</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #26a69a"></div>
+            <span>Faro</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #a1887f"></div>
+            <span>Leiria</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #ce93d8"></div>
+            <span>Santarém</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #7986cb"></div>
+            <span>Viana do Castelo</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #42a5f5"></div>
+            <span>Vila Real</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #29b6f6"></div>
+            <span>Viseu</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #26c6da"></div>
+            <span>Guarda</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #26a69a"></div>
+            <span>Castelo Branco</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #66bb6a"></div>
+            <span>Portalegre</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #9ccc65"></div>
+            <span>Évora</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #a1887f"></div>
+            <span>Beja</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="map-controls">
+        <button
+          class="control-btn"
+          id="locateBtn"
+          title="Localizar minha posição"
+        >
+          <span>Minha Localização</span>
+        </button>
+        <button
+          class="control-btn"
+          id="randomBtn"
+          title="Explorar concelho aleatório"
+        >
+          <span>Expande a tua música...</span>
+        </button>
+        <button class="control-btn" id="resetBtn" title="Voltar à vista global">
+          <span>Vista Global</span>
+        </button>
+      </div>
+
+      <div id="globalChatModal" class="global-chat-panel" hidden>
+        <div class="global-chat-header">
+          <div class="global-chat-header-top">
+            <h2 id="globalChatTitle" class="artist-modal-title">Chat Geral</h2>
+            <button
+              type="button"
+              id="globalChatMinimizeBtn"
+              class="global-chat-minimize-btn"
+              aria-label="Minimizar chat"
+              aria-expanded="true"
+            >
+              ⌃
+            </button>
+          </div>
+        </div>
+        <div id="globalChatMessages" class="global-chat-messages"></div>
+        <div id="globalChatPendingNotice" class="global-chat-readonly-notice" hidden>
+          A tua conta está pendente de confirmação. O chat geral ficará disponível após a confirmação da conta.
+        </div>
+        <form id="globalChatForm" class="global-chat-form">
+          <div class="global-chat-input-wrap">
+            <textarea
+              id="globalChatInput"
+              rows="1"
+              maxlength="255"
+              placeholder="Escreve uma mensagem..."
+              required
+            ></textarea>
+            <div class="global-chat-footer">
+              <span id="globalChatCounter">0/255</span>
+              <div class="global-chat-actions">
+                <div class="chat-emoji-wrap">
+                  <button
+                    type="button"
+                    id="globalChatEmojiBtn"
+                    class="chat-emoji-toggle"
+                    data-chat-emoji-toggle
+                    aria-label="Abrir emojis"
+                    aria-expanded="false"
+                  >
+                    🙂
+                  </button>
+                  <div id="globalChatEmojiPicker" class="chat-emoji-picker" hidden></div>
+                </div>
+                <button
+                  type="submit"
+                  class="artist-upvote-btn artist-upvote-btn-modal"
+                >
+                  Enviar
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div>A carregar...</div>
+      </div>
+
+      <div class="attribution">
+        Mapas:
+        <a href="https://www.openstreetmap.org/copyright" target="_blank"
+          >OpenStreetMap</a
+        >
+        • Dados Cidades:
+        <a href="https://nominatim.openstreetmap.org" target="_blank"
+          >Nominatim</a
+        >
+        • Dados Concelhos:
+        <a href="https://www.dgterritorio.gov.pt" target="_blank"
+          >DGT CAOP 2024</a
+        >
+      </div>
+    </div>
+
+    <div id="artistModal" class="artist-modal" hidden>
+      <div id="artistModalOverlay" class="artist-modal-overlay"></div>
+      <div
+        class="artist-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="artistModalTitle"
+      >
+        <button
+          id="artistModalClose"
+          class="artist-modal-close"
+          aria-label="Fechar detalhes do artista"
+        >
+          &times;
+        </button>
+        <div id="artistModalBody" class="artist-modal-body"></div>
+      </div>
+    </div>
+
+    <div id="onboardingOverlay" class="onboarding-overlay" hidden>
+      <div class="onboarding-mask"></div>
+      <div id="onboardingHighlight" class="onboarding-highlight"></div>
+      <div
+        id="onboardingTooltip"
+        class="onboarding-tooltip"
+        role="dialog"
+        aria-modal="true"
+        aria-live="polite"
+      >
+        <div id="onboardingStepCounter" class="onboarding-step-counter"></div>
+        <h3 id="onboardingTitle" class="onboarding-title"></h3>
+        <p id="onboardingDescription" class="onboarding-description"></p>
+        <div class="onboarding-actions">
+          <button
+            id="onboardingSkipBtn"
+            class="onboarding-btn onboarding-btn-ghost"
+            type="button"
+          >
+            Saltar
+          </button>
+          <button
+            id="onboardingPrevBtn"
+            class="onboarding-btn onboarding-btn-ghost"
+            type="button"
+          >
+            Anterior
+          </button>
+          <button
+            id="onboardingNextBtn"
+            class="onboarding-btn onboarding-btn-primary"
+            type="button"
+          >
+            Próximo
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.10.0/proj4.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

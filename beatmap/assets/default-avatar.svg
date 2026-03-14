@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="Avatar padrao">
+  <rect width="600" height="600" fill="#b9b9b9"/>
+  <circle cx="300" cy="204" r="111" fill="#efefef"/>
+  <circle cx="300" cy="640" r="198" fill="#efefef"/>
+</svg>
