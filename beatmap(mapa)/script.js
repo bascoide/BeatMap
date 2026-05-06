@@ -4,14 +4,6 @@
 
 // Inicializar o mapa
 const map = L.map("map").setView([20, 0], 2);
-
-// Adicionar controles de zoom
-L.control
-  .zoom({
-    position: "topleft",
-  })
-  .addTo(map);
-
 // ============================================
 // ELEMENTOS DOM
 // ============================================
@@ -202,8 +194,21 @@ let currentPrivateConversationArtistName = "";
 let currentPrivateConversationArtistAvatar = "";
 let currentPrivateConversationLastMessageId = 0;
 let privateConversationDraftByArtistId = new Map();
+let privateConversationPendingAudioByArtistId = new Map();
+let privateConversationAudioRecorder = null;
+let privateConversationAudioRecorderStream = null;
+let privateConversationAudioRecorderChunks = [];
+let privateConversationAudioRecorderArtistId = 0;
+let privateConversationAudioRecorderStartedAt = 0;
+let privateConversationAudioRecorderMimeType = "";
+let privateConversationAudioRecorderPersistOnStop = true;
+let privateConversationAudioRecorderLimitReached = false;
+let privateConversationAudioRecorderStopResolver = null;
+let privateConversationAudioRecorderInterval = null;
 const PRIVATE_INBOX_POLL_INTERVAL_MS = 3000;
 const PRIVATE_INBOX_BADGE_POLL_INTERVAL_MS = 4000;
+const PRIVATE_AUDIO_MAX_BYTES = 10 * 1024 * 1024;
+const PRIVATE_VOICE_MAX_DURATION_SECONDS = 60;
 const GLOBAL_CHAT_MINIMIZED_KEY = "beatmap_global_chat_minimized";
 const layerToggle = document.getElementById("layerToggle");
 const ONBOARDING_HIGHLIGHT_PADDING = 10;
@@ -511,6 +516,713 @@ function autoResizePrivateConversationInput(textarea) {
   textarea.style.height = `${targetHeight}px`;
   textarea.style.overflowY =
     textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+}
+
+function formatBytes(bytes) {
+  const normalizedBytes = Number(bytes) || 0;
+  if (normalizedBytes <= 0) {
+    return "0 B";
+  }
+
+  const units = ["B", "KB", "MB", "GB"];
+  const unitIndex = Math.min(
+    units.length - 1,
+    Math.floor(Math.log(normalizedBytes) / Math.log(1024)),
+  );
+  const value = normalizedBytes / 1024 ** unitIndex;
+  const digits = unitIndex === 0 ? 0 : value >= 10 ? 1 : 2;
+  return `${value.toFixed(digits)} ${units[unitIndex]}`;
+}
+
+function formatDurationSeconds(value) {
+  const totalSeconds = Math.max(0, Math.round(Number(value) || 0));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function buildPrivateAudioPlayerHtml({
+  audioUrl = "",
+  durationSeconds = null,
+  compact = false,
+  downloadName = "",
+} = {}) {
+  const normalizedDuration = Number.isFinite(Number(durationSeconds))
+    ? Math.max(0, Number(durationSeconds))
+    : 0;
+  const safeDownloadName = escapeHtml(downloadName || "audio");
+
+  return `
+    <div class="private-audio-player ${compact ? "is-compact" : ""}" data-private-audio-player>
+      <audio class="private-audio-element" preload="metadata" src="${escapeHtml(audioUrl || "")}"></audio>
+      <button
+        type="button"
+        class="private-audio-toggle"
+        data-private-audio-toggle
+        aria-label="Reproduzir áudio"
+      >
+        <span data-private-audio-toggle-icon>▶</span>
+      </button>
+      <div class="private-audio-progress-wrap">
+        <input
+          type="range"
+          class="private-audio-progress"
+          data-private-audio-progress
+          min="0"
+          max="${normalizedDuration > 0 ? escapeHtml(String(normalizedDuration)) : "100"}"
+          step="0.01"
+          value="0"
+          aria-label="Navegar no áudio"
+        >
+        <div class="private-audio-times">
+          <span data-private-audio-current>00:00</span>
+          <span data-private-audio-duration>${escapeHtml(formatDurationSeconds(normalizedDuration))}</span>
+        </div>
+      </div>
+      <a
+        class="private-audio-download"
+        href="${escapeHtml(audioUrl || "")}"
+        download="${safeDownloadName}"
+        aria-label="Descarregar áudio"
+        title="Descarregar áudio"
+      >
+        <span class="private-audio-download-icon" aria-hidden="true">↓</span>
+      </a>
+    </div>
+  `;
+}
+
+function syncPrivateAudioPlayerUi(player) {
+  if (!(player instanceof HTMLElement)) {
+    return;
+  }
+
+  const audio = player.querySelector(".private-audio-element");
+  const progress = player.querySelector("[data-private-audio-progress]");
+  const current = player.querySelector("[data-private-audio-current]");
+  const duration = player.querySelector("[data-private-audio-duration]");
+  const toggleIcon = player.querySelector("[data-private-audio-toggle-icon]");
+  if (!(audio instanceof HTMLAudioElement)) {
+    return;
+  }
+
+  const safeDuration = Number.isFinite(audio.duration) && audio.duration > 0
+    ? audio.duration
+    : Number(progress instanceof HTMLInputElement ? progress.max : 0) || 0;
+  const safeCurrent = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+
+  if (progress instanceof HTMLInputElement) {
+    const max = safeDuration > 0 ? safeDuration : 100;
+    const value = Math.min(safeCurrent, max);
+    progress.max = String(max);
+    progress.value = String(value);
+    progress.style.setProperty(
+      "--private-audio-progress",
+      `${max > 0 ? (value / max) * 100 : 0}%`,
+    );
+  }
+
+  if (current instanceof HTMLElement) {
+    current.textContent = formatDurationSeconds(safeCurrent);
+  }
+
+  if (duration instanceof HTMLElement) {
+    duration.textContent = formatDurationSeconds(safeDuration);
+  }
+
+  if (toggleIcon instanceof HTMLElement) {
+    toggleIcon.textContent = audio.paused ? "▶" : "❚❚";
+  }
+}
+
+function pauseOtherPrivateAudioPlayers(activeAudio) {
+  if (!(activeAudio instanceof HTMLAudioElement)) {
+    return;
+  }
+
+  document.querySelectorAll(".private-audio-element").forEach((node) => {
+    if (!(node instanceof HTMLAudioElement) || node === activeAudio) {
+      return;
+    }
+
+    node.pause();
+    const player = node.closest("[data-private-audio-player]");
+    if (player instanceof HTMLElement) {
+      syncPrivateAudioPlayerUi(player);
+    }
+  });
+}
+
+function initializePrivateAudioPlayer(player) {
+  if (!(player instanceof HTMLElement) || player.dataset.privateAudioReady === "1") {
+    return;
+  }
+
+  const audio = player.querySelector(".private-audio-element");
+  const toggle = player.querySelector("[data-private-audio-toggle]");
+  const progress = player.querySelector("[data-private-audio-progress]");
+  if (!(audio instanceof HTMLAudioElement)) {
+    return;
+  }
+
+  const sync = () => syncPrivateAudioPlayerUi(player);
+
+  audio.addEventListener("loadedmetadata", sync);
+  audio.addEventListener("timeupdate", sync);
+  audio.addEventListener("pause", sync);
+  audio.addEventListener("ended", sync);
+  audio.addEventListener("play", () => {
+    pauseOtherPrivateAudioPlayers(audio);
+    sync();
+  });
+
+  if (toggle instanceof HTMLButtonElement) {
+    toggle.addEventListener("click", async () => {
+      try {
+        if (audio.paused) {
+          pauseOtherPrivateAudioPlayers(audio);
+          await audio.play();
+        } else {
+          audio.pause();
+        }
+      } catch (error) {
+        sync();
+      }
+    });
+  }
+
+  if (progress instanceof HTMLInputElement) {
+    const seek = () => {
+      const nextTime = Number(progress.value || 0);
+      if (Number.isFinite(nextTime)) {
+        audio.currentTime = nextTime;
+      }
+      sync();
+    };
+
+    progress.addEventListener("input", seek);
+    progress.addEventListener("change", seek);
+  }
+
+  player.dataset.privateAudioReady = "1";
+  sync();
+}
+
+function initializePrivateAudioPlayers(root = privateInboxList) {
+  if (!(root instanceof Element)) {
+    return;
+  }
+
+  root.querySelectorAll("[data-private-audio-player]").forEach((player) => {
+    initializePrivateAudioPlayer(player);
+  });
+}
+
+function isPrivateVoiceRecordingSupported() {
+  return !!(
+    window.MediaRecorder &&
+    navigator.mediaDevices &&
+    typeof navigator.mediaDevices.getUserMedia === "function"
+  );
+}
+
+function getPrivateVoiceRecordingMimeType() {
+  if (!(window.MediaRecorder && typeof MediaRecorder.isTypeSupported === "function")) {
+    return "";
+  }
+
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+    "audio/ogg",
+    "audio/mp4",
+  ];
+
+  return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate)) || "";
+}
+
+function getPrivateConversationDraft(artistId) {
+  if (!Number.isInteger(artistId) || artistId <= 0) {
+    return "";
+  }
+
+  return (privateConversationDraftByArtistId.get(artistId) || "").toString();
+}
+
+function setPrivateConversationDraft(artistId, value) {
+  if (!Number.isInteger(artistId) || artistId <= 0) {
+    return;
+  }
+
+  const normalized = (value || "").toString();
+  if (!normalized) {
+    privateConversationDraftByArtistId.delete(artistId);
+    return;
+  }
+
+  privateConversationDraftByArtistId.set(artistId, normalized);
+}
+
+function getPrivateConversationPendingAudio(artistId) {
+  if (!Number.isInteger(artistId) || artistId <= 0) {
+    return null;
+  }
+
+  return privateConversationPendingAudioByArtistId.get(artistId) || null;
+}
+
+function clearPrivateConversationPendingAudio(artistId) {
+  if (!Number.isInteger(artistId) || artistId <= 0) {
+    return;
+  }
+
+  const existing = privateConversationPendingAudioByArtistId.get(artistId);
+  if (existing?.objectUrl) {
+    URL.revokeObjectURL(existing.objectUrl);
+  }
+
+  privateConversationPendingAudioByArtistId.delete(artistId);
+}
+
+function setPrivateConversationPendingAudio(artistId, payload) {
+  if (!Number.isInteger(artistId) || artistId <= 0 || !payload?.file || !payload?.objectUrl) {
+    return;
+  }
+
+  clearPrivateConversationPendingAudio(artistId);
+  privateConversationPendingAudioByArtistId.set(artistId, {
+    file: payload.file,
+    objectUrl: payload.objectUrl,
+    durationSeconds: Number.isFinite(payload.durationSeconds)
+      ? Number(payload.durationSeconds)
+      : null,
+    source: payload.source === "voice_recording" ? "voice_recording" : "audio_file",
+    displayName: (payload.displayName || payload.file.name || "Áudio").toString(),
+    sizeBytes: Number(payload.sizeBytes || payload.file.size || 0),
+  });
+}
+
+function isRecordingPrivateConversationAudioForArtist(artistId) {
+  return (
+    Number.isInteger(artistId) &&
+    artistId > 0 &&
+    privateConversationAudioRecorderArtistId === artistId &&
+    privateConversationAudioRecorder instanceof MediaRecorder &&
+    privateConversationAudioRecorder.state !== "inactive"
+  );
+}
+
+function getPrivateConversationRecordingElapsedSeconds() {
+  if (privateConversationAudioRecorderStartedAt <= 0) {
+    return 0;
+  }
+
+  return Math.min(
+    PRIVATE_VOICE_MAX_DURATION_SECONDS,
+    (Date.now() - privateConversationAudioRecorderStartedAt) / 1000,
+  );
+}
+
+function clearPrivateConversationAudioRecorderInterval() {
+  if (privateConversationAudioRecorderInterval) {
+    clearInterval(privateConversationAudioRecorderInterval);
+    privateConversationAudioRecorderInterval = null;
+  }
+}
+
+function stopPrivateConversationAudioRecorderStream() {
+  if (!privateConversationAudioRecorderStream) {
+    return;
+  }
+
+  privateConversationAudioRecorderStream.getTracks().forEach((track) => {
+    track.stop();
+  });
+  privateConversationAudioRecorderStream = null;
+}
+
+function buildPrivateConversationAudioHintText(artistId) {
+  if (isRecordingPrivateConversationAudioForArtist(artistId)) {
+    return `A gravar ${formatDurationSeconds(getPrivateConversationRecordingElapsedSeconds())} / ${formatDurationSeconds(PRIVATE_VOICE_MAX_DURATION_SECONDS)}`;
+  }
+
+  const pendingAudio = getPrivateConversationPendingAudio(artistId);
+  if (pendingAudio) {
+    const kindLabel = pendingAudio.source === "voice_recording"
+      ? "Mensagem de voz pronta para enviar"
+      : "Áudio pronto";
+    const durationLabel = Number.isFinite(pendingAudio.durationSeconds)
+      ? ` ${formatDurationSeconds(pendingAudio.durationSeconds)}`
+      : "";
+    const behaviorLabel = pendingAudio.source === "voice_recording"
+      ? "Vai ser enviada sem texto."
+      : "Podes escrever texto na mesma mensagem.";
+    return `${kindLabel}.${durationLabel} ${behaviorLabel}`.trim();
+  }
+
+  return "Áudio até 10 MB. Voz até 1:00.";
+}
+
+function isPrivateConversationVoiceMessageMode(artistId) {
+  return getPrivateConversationPendingAudio(artistId)?.source === "voice_recording";
+}
+
+function buildPrivateConversationAudioPreviewHtml(artistId) {
+  if (isRecordingPrivateConversationAudioForArtist(artistId)) {
+    return `
+      <div class="private-conversation-audio-card is-recording">
+        <div class="private-conversation-audio-card-top">
+          <strong>A gravar mensagem de voz</strong>
+          <span>${escapeHtml(formatDurationSeconds(getPrivateConversationRecordingElapsedSeconds()))}</span>
+        </div>
+        <div class="private-conversation-audio-wave" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    `;
+  }
+
+  const pendingAudio = getPrivateConversationPendingAudio(artistId);
+  if (!pendingAudio) {
+    return "";
+  }
+
+  const safeName = escapeHtml(pendingAudio.displayName || "Áudio");
+  const safeUrl = escapeHtml(pendingAudio.objectUrl || "");
+  const metaParts = [formatBytes(pendingAudio.sizeBytes)];
+  if (Number.isFinite(pendingAudio.durationSeconds)) {
+    metaParts.unshift(formatDurationSeconds(pendingAudio.durationSeconds));
+  }
+
+  return `
+    <div class="private-conversation-audio-card">
+      <div class="private-conversation-audio-card-top">
+        <strong>${safeName}</strong>
+        <button type="button" class="private-conversation-audio-remove" data-private-audio-remove>Remover</button>
+      </div>
+      <div class="private-conversation-audio-meta">${escapeHtml(metaParts.join(" • "))}</div>
+      ${buildPrivateAudioPlayerHtml({
+        audioUrl: safeUrl,
+        durationSeconds: pendingAudio.durationSeconds,
+        downloadName: pendingAudio.displayName || "audio",
+      })}
+    </div>
+  `;
+}
+
+function refreshPrivateConversationComposerUi() {
+  if (!privateInboxList) {
+    return;
+  }
+
+  const form = privateInboxList.querySelector("form[data-private-conversation-form]");
+  if (!(form instanceof HTMLFormElement)) {
+    return;
+  }
+
+  const artistId = currentPrivateConversationArtistId;
+  const isRecording = isRecordingPrivateConversationAudioForArtist(artistId);
+  const preview = form.querySelector("[data-private-audio-preview]");
+  const hint = form.querySelector("[data-private-audio-hint]");
+  const recordButton = form.querySelector("[data-private-audio-record]");
+  const attachButton = form.querySelector("[data-private-audio-trigger]");
+  const fileInput = form.querySelector("[data-private-audio-input]");
+  const textInput = form.querySelector("[data-private-conversation-input]");
+  const isVoiceMessageMode = isPrivateConversationVoiceMessageMode(artistId);
+
+  if (preview instanceof HTMLElement) {
+    const previewHtml = buildPrivateConversationAudioPreviewHtml(artistId);
+    preview.hidden = previewHtml === "";
+    preview.innerHTML = previewHtml;
+    initializePrivateAudioPlayers(preview);
+  }
+
+  if (hint instanceof HTMLElement) {
+    hint.textContent = buildPrivateConversationAudioHintText(artistId);
+  }
+
+  if (recordButton instanceof HTMLButtonElement) {
+    const recordingSupported = isPrivateVoiceRecordingSupported();
+    recordButton.disabled = !recordingSupported;
+    recordButton.classList.toggle("is-recording", isRecording);
+    recordButton.textContent = isRecording ? "Parar gravacao" : "Gravar voz";
+    recordButton.title = recordingSupported
+      ? isRecording
+        ? "Parar gravação"
+        : "Gravar mensagem de voz"
+      : "O teu browser não suporta gravação de voz";
+  }
+
+  if (attachButton instanceof HTMLButtonElement) {
+    attachButton.disabled = isRecording;
+  }
+
+  if (fileInput instanceof HTMLInputElement) {
+    fileInput.disabled = isRecording;
+  }
+
+  if (textInput instanceof HTMLTextAreaElement) {
+    textInput.required = false;
+    textInput.disabled = isVoiceMessageMode;
+    textInput.placeholder = isVoiceMessageMode
+      ? "A mensagem de voz será enviada sem texto."
+      : "Escreve uma mensagem privada...";
+  }
+}
+
+function readAudioDurationFromObjectUrl(objectUrl) {
+  return new Promise((resolve) => {
+    if (!objectUrl) {
+      resolve(null);
+      return;
+    }
+
+    const audio = document.createElement("audio");
+    let finished = false;
+
+    const finish = (duration) => {
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+      audio.removeAttribute("src");
+      audio.load();
+      resolve(Number.isFinite(duration) ? Number(duration) : null);
+    };
+
+    const timeoutId = window.setTimeout(() => finish(null), 4000);
+
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => {
+      clearTimeout(timeoutId);
+      finish(audio.duration);
+    };
+    audio.onerror = () => {
+      clearTimeout(timeoutId);
+      finish(null);
+    };
+    audio.src = objectUrl;
+  });
+}
+
+async function attachPrivateConversationAudioFile(file) {
+  if (!(file instanceof File)) {
+    return;
+  }
+
+  if (!Number.isInteger(currentPrivateConversationArtistId) || currentPrivateConversationArtistId <= 0) {
+    showTempMessage("Conversa inválida.", "warning");
+    return;
+  }
+
+  if (!file.type || !file.type.toLowerCase().startsWith("audio/")) {
+    showTempMessage("Escolhe um ficheiro de áudio válido.", "warning");
+    return;
+  }
+
+  if (file.size > PRIVATE_AUDIO_MAX_BYTES) {
+    showTempMessage("O ficheiro de áudio deve ter no máximo 10 MB.", "warning");
+    return;
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  const durationSeconds = await readAudioDurationFromObjectUrl(objectUrl);
+
+  setPrivateConversationPendingAudio(currentPrivateConversationArtistId, {
+    file,
+    objectUrl,
+    durationSeconds,
+    source: "audio_file",
+    displayName: file.name || "Áudio anexado",
+    sizeBytes: file.size,
+  });
+
+  refreshPrivateConversationComposerUi();
+}
+
+function getPrivateVoiceRecordingExtension(mimeType) {
+  const normalized = (mimeType || "").toLowerCase();
+  if (normalized.includes("ogg")) {
+    return "ogg";
+  }
+
+  if (normalized.includes("mp4")) {
+    return "m4a";
+  }
+
+  return "webm";
+}
+
+function resolvePrivateConversationRecordingPromise() {
+  if (typeof privateConversationAudioRecorderStopResolver === "function") {
+    privateConversationAudioRecorderStopResolver();
+  }
+
+  privateConversationAudioRecorderStopResolver = null;
+}
+
+async function stopPrivateConversationVoiceRecording(
+  { persist = true, limitReached = false } = {},
+) {
+  if (!(privateConversationAudioRecorder instanceof MediaRecorder)) {
+    return;
+  }
+
+  if (privateConversationAudioRecorder.state === "inactive") {
+    return;
+  }
+
+  privateConversationAudioRecorderPersistOnStop = persist;
+  privateConversationAudioRecorderLimitReached = limitReached;
+
+  await new Promise((resolve) => {
+    privateConversationAudioRecorderStopResolver = resolve;
+    privateConversationAudioRecorder.stop();
+  });
+}
+
+async function startPrivateConversationVoiceRecording() {
+  if (!isPrivateVoiceRecordingSupported()) {
+    showTempMessage("O teu browser não suporta gravação de voz.", "warning");
+    return;
+  }
+
+  if (!Number.isInteger(currentPrivateConversationArtistId) || currentPrivateConversationArtistId <= 0) {
+    showTempMessage("Conversa inválida.", "warning");
+    return;
+  }
+
+  if (
+    privateConversationAudioRecorder instanceof MediaRecorder &&
+    privateConversationAudioRecorder.state !== "inactive"
+  ) {
+    await stopPrivateConversationVoiceRecording({ persist: false });
+  }
+
+  clearPrivateConversationPendingAudio(currentPrivateConversationArtistId);
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+    });
+    const mimeType = getPrivateVoiceRecordingMimeType();
+    const recorder = mimeType
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream);
+    const recordingArtistId = currentPrivateConversationArtistId;
+
+    privateConversationAudioRecorder = recorder;
+    privateConversationAudioRecorderStream = stream;
+    privateConversationAudioRecorderChunks = [];
+    privateConversationAudioRecorderArtistId = recordingArtistId;
+    privateConversationAudioRecorderStartedAt = Date.now();
+    privateConversationAudioRecorderMimeType = mimeType;
+    privateConversationAudioRecorderPersistOnStop = true;
+    privateConversationAudioRecorderLimitReached = false;
+    setPrivateConversationDraft(recordingArtistId, "");
+
+    recorder.addEventListener("dataavailable", (event) => {
+      if (event.data && event.data.size > 0) {
+        privateConversationAudioRecorderChunks.push(event.data);
+      }
+    });
+
+    recorder.addEventListener("stop", async () => {
+      const chunks = privateConversationAudioRecorderChunks.slice();
+      const recordedMimeType =
+        recorder.mimeType || privateConversationAudioRecorderMimeType || "audio/webm";
+      const durationSeconds = getPrivateConversationRecordingElapsedSeconds();
+      const persist = privateConversationAudioRecorderPersistOnStop;
+      const limitReached = privateConversationAudioRecorderLimitReached;
+      const artistId = privateConversationAudioRecorderArtistId;
+
+      clearPrivateConversationAudioRecorderInterval();
+      stopPrivateConversationAudioRecorderStream();
+      privateConversationAudioRecorder = null;
+      privateConversationAudioRecorderChunks = [];
+      privateConversationAudioRecorderArtistId = 0;
+      privateConversationAudioRecorderStartedAt = 0;
+      privateConversationAudioRecorderMimeType = "";
+      privateConversationAudioRecorderPersistOnStop = true;
+      privateConversationAudioRecorderLimitReached = false;
+
+      if (persist && chunks.length > 0 && Number.isInteger(artistId) && artistId > 0) {
+        const blob = new Blob(chunks, { type: recordedMimeType || "audio/webm" });
+
+        if (blob.size > PRIVATE_AUDIO_MAX_BYTES) {
+          showTempMessage("A gravação excedeu o limite de 10 MB.", "warning");
+        } else {
+          const extension = getPrivateVoiceRecordingExtension(recordedMimeType);
+          const file = new File(
+            [blob],
+            `mensagem-voz-${Date.now()}.${extension}`,
+            { type: blob.type || recordedMimeType || "audio/webm" },
+          );
+          const objectUrl = URL.createObjectURL(file);
+
+          setPrivateConversationPendingAudio(artistId, {
+            file,
+            objectUrl,
+            durationSeconds,
+            source: "voice_recording",
+            displayName: "Mensagem de voz",
+            sizeBytes: file.size,
+          });
+          setPrivateConversationDraft(artistId, "");
+
+          if (limitReached) {
+            showTempMessage("Limite de 1 minuto atingido.", "warning");
+          }
+        }
+      }
+
+      refreshPrivateConversationComposerUi();
+      resolvePrivateConversationRecordingPromise();
+    });
+
+    recorder.addEventListener("error", () => {
+      clearPrivateConversationAudioRecorderInterval();
+      stopPrivateConversationAudioRecorderStream();
+      privateConversationAudioRecorder = null;
+      privateConversationAudioRecorderChunks = [];
+      privateConversationAudioRecorderArtistId = 0;
+      privateConversationAudioRecorderStartedAt = 0;
+      privateConversationAudioRecorderMimeType = "";
+      privateConversationAudioRecorderPersistOnStop = true;
+      privateConversationAudioRecorderLimitReached = false;
+      showTempMessage("Não foi possível gravar a mensagem de voz.", "error", 3000);
+      refreshPrivateConversationComposerUi();
+      resolvePrivateConversationRecordingPromise();
+    });
+
+    recorder.start(250);
+    clearPrivateConversationAudioRecorderInterval();
+    privateConversationAudioRecorderInterval = window.setInterval(() => {
+      refreshPrivateConversationComposerUi();
+
+      if (
+        isRecordingPrivateConversationAudioForArtist(recordingArtistId) &&
+        getPrivateConversationRecordingElapsedSeconds() >= PRIVATE_VOICE_MAX_DURATION_SECONDS
+      ) {
+        stopPrivateConversationVoiceRecording({
+          persist: true,
+          limitReached: true,
+        });
+      }
+    }, 250);
+
+    refreshPrivateConversationComposerUi();
+  } catch (error) {
+    showTempMessage(
+      error?.message || "Não foi possível aceder ao microfone.",
+      "error",
+      3000,
+    );
+    stopPrivateConversationAudioRecorderStream();
+    refreshPrivateConversationComposerUi();
+  }
 }
 
 function buildEmojiPickerItemsHtml() {
@@ -920,6 +1632,13 @@ function setPrivateInboxHeader(title) {
 }
 
 function resetPrivateInboxView() {
+  if (
+    privateConversationAudioRecorder instanceof MediaRecorder &&
+    privateConversationAudioRecorder.state !== "inactive"
+  ) {
+    stopPrivateConversationVoiceRecording({ persist: false });
+  }
+
   privateInboxViewMode = "conversations";
   currentPrivateConversationArtistId = 0;
   currentPrivateConversationArtistName = "";
@@ -927,28 +1646,6 @@ function resetPrivateInboxView() {
   currentPrivateConversationLastMessageId = 0;
   privateInboxList?.classList.remove("is-conversation-view");
   setPrivateInboxHeader("Mensagens privadas");
-}
-
-function getPrivateConversationDraft(artistId) {
-  if (!Number.isInteger(artistId) || artistId <= 0) {
-    return "";
-  }
-
-  return (privateConversationDraftByArtistId.get(artistId) || "").toString();
-}
-
-function setPrivateConversationDraft(artistId, value) {
-  if (!Number.isInteger(artistId) || artistId <= 0) {
-    return;
-  }
-
-  const normalized = (value || "").toString();
-  if (!normalized) {
-    privateConversationDraftByArtistId.delete(artistId);
-    return;
-  }
-
-  privateConversationDraftByArtistId.set(artistId, normalized);
 }
 
 function getCurrentPrivateConversationAvatarUrl() {
@@ -1005,9 +1702,40 @@ function buildPrivateConversationHeaderHtml() {
 
 function buildPrivateConversationComposerHtml() {
   const emojiItems = buildEmojiPickerItemsHtml();
+  const artistId = currentPrivateConversationArtistId;
+  const recordingSupported = isPrivateVoiceRecordingSupported();
+  const isRecording = isRecordingPrivateConversationAudioForArtist(artistId);
+  const audioHint = escapeHtml(buildPrivateConversationAudioHintText(artistId));
+  const audioPreviewHtml = buildPrivateConversationAudioPreviewHtml(artistId);
 
   return `
     <form class="private-conversation-form" data-private-conversation-form>
+      <div class="private-conversation-toolbar">
+        <button type="button" class="private-conversation-tool-btn" data-private-audio-trigger>
+          Anexar audio
+        </button>
+        <button
+          type="button"
+          class="private-conversation-tool-btn ${isRecording ? "is-recording" : ""}"
+          data-private-audio-record
+          ${recordingSupported ? "" : "disabled"}
+        >
+          ${isRecording ? "Parar gravacao" : "Gravar voz"}
+        </button>
+        <span class="private-conversation-audio-hint" data-private-audio-hint>${audioHint}</span>
+        <input
+          type="file"
+          class="private-conversation-audio-input"
+          data-private-audio-input
+          accept="audio/*"
+          hidden
+        >
+      </div>
+      <div
+        class="private-conversation-audio-preview"
+        data-private-audio-preview
+        ${audioPreviewHtml ? "" : "hidden"}
+      >${audioPreviewHtml}</div>
       <div class="private-conversation-input-wrap">
         <textarea
           class="private-conversation-input"
@@ -1015,7 +1743,6 @@ function buildPrivateConversationComposerHtml() {
           rows="1"
           maxlength="255"
           placeholder="Escreve uma mensagem privada..."
-          required
         ></textarea>
         <div class="private-conversation-footer">
           <div class="private-conversation-actions">
@@ -1147,7 +1874,16 @@ function renderPrivateInboxConversations(conversations) {
       const unreadCount = Number(item?.unread_count || 0);
       const artistNameRaw = (item?.other_artist_name || "Artista").toString();
       const safeName = escapeHtml(artistNameRaw);
-      const safeMessage = escapeHtml(item?.last_message || "");
+      const previewText = (
+        item?.last_message_preview ||
+        item?.last_message ||
+        (item?.last_audio_path
+          ? item?.last_audio_source === "voice_recording"
+            ? "Mensagem de voz"
+            : "Ficheiro de áudio"
+          : "")
+      ).toString();
+      const safeMessage = escapeHtml(previewText);
       const safeTime = escapeHtml(formatGlobalChatDate(item?.last_created_at));
       const avatarRaw = (item?.other_artist_image || "").toString().trim();
       const avatarNormalized = avatarRaw
@@ -1250,6 +1986,7 @@ function renderPrivateConversationMessages(messages) {
       }
     }
     autoResizePrivateConversationInput(composerInput);
+    refreshPrivateConversationComposerUi();
     return;
   }
 
@@ -1259,10 +1996,60 @@ function renderPrivateConversationMessages(messages) {
       const isOwn = senderId === currentSessionAccountId;
       const safeMessage = escapeHtml(item?.message || "");
       const safeTime = escapeHtml(formatGlobalChatDate(item?.created_at));
+      const audioUrl = (item?.audio_path || "").toString().trim();
+      const safeAudioUrl = escapeHtml(audioUrl);
+      const hasAudio = audioUrl !== "";
+      const isAudioOnly = hasAudio && safeMessage === "";
+      const audioDurationRaw = item?.audio_duration_seconds;
+      const audioLabel = hasAudio
+        ? escapeHtml(
+            item?.audio_source === "voice_recording"
+              ? "Mensagem de voz"
+              : item?.audio_original_name || "Áudio anexado",
+          )
+        : "";
+      const audioMetaParts = [];
+      if (
+        audioDurationRaw !== null &&
+        audioDurationRaw !== undefined &&
+        audioDurationRaw !== "" &&
+        Number.isFinite(Number(audioDurationRaw))
+      ) {
+        audioMetaParts.push(
+          formatDurationSeconds(Number(audioDurationRaw)),
+        );
+      }
+      if (Number(item?.audio_size_bytes || 0) > 0) {
+        audioMetaParts.push(formatBytes(Number(item?.audio_size_bytes || 0)));
+      }
+      const safeAudioMeta = escapeHtml(audioMetaParts.join(" • "));
+      const messageHtml = safeMessage
+        ? `<div class="private-conversation-text">${safeMessage}</div>`
+        : "";
+      const audioHtml = hasAudio
+        ? `
+          <div class="private-conversation-audio-block">
+            ${buildPrivateAudioPlayerHtml({
+              audioUrl: safeAudioUrl,
+              durationSeconds: audioDurationRaw,
+              compact: isAudioOnly,
+              downloadName:
+                item?.audio_source === "voice_recording"
+                  ? "mensagem-de-voz"
+                  : item?.audio_original_name || "audio",
+            })}
+            <div class="private-conversation-audio-caption">
+              <span>${audioLabel}</span>
+              ${safeAudioMeta ? `<span>${safeAudioMeta}</span>` : ""}
+            </div>
+          </div>
+        `
+        : "";
 
+        initializePrivateAudioPlayers(privateInboxList);
       return `
-        <div class="private-conversation-item ${isOwn ? "is-own" : ""}">
-          <div class="private-conversation-bubble">${safeMessage}</div>
+        <div class="private-conversation-item ${isOwn ? "is-own" : ""} ${isAudioOnly ? "is-audio-only" : ""}">
+          <div class="private-conversation-bubble">${messageHtml}${audioHtml}</div>
           <div class="private-conversation-time">${safeTime}</div>
         </div>
       `;
@@ -1297,6 +2084,8 @@ function renderPrivateConversationMessages(messages) {
     }
   }
   autoResizePrivateConversationInput(composerInput);
+  refreshPrivateConversationComposerUi();
+  initializePrivateAudioPlayers(privateInboxList);
 }
 
 async function fetchPrivateInboxConversations({ silent = false } = {}) {
@@ -1463,16 +2252,28 @@ async function fetchPrivateInboxUnreadCount({ silent = true } = {}) {
   }
 }
 
-async function submitPrivateMessage(recipientArtistId, message) {
+async function submitPrivateMessage(recipientArtistId, message, pendingAudio = null) {
+  const formData = new FormData();
+  formData.append("recipient_artist_id", String(recipientArtistId));
+
+  if (message) {
+    formData.append("message", message);
+  }
+
+  if (pendingAudio?.file instanceof File) {
+    formData.append("audio", pendingAudio.file, pendingAudio.file.name || "audio");
+    formData.append("audio_source", pendingAudio.source || "audio_file");
+    if (Number.isFinite(pendingAudio.durationSeconds)) {
+      formData.append(
+        "audio_duration_seconds",
+        String(Number(pendingAudio.durationSeconds).toFixed(2)),
+      );
+    }
+  }
+
   const response = await fetch("api/send_private_message.php", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      recipient_artist_id: recipientArtistId,
-      message,
-    }),
+    body: formData,
   });
 
   const data = await response.json();
@@ -6496,6 +7297,33 @@ privateInboxList?.addEventListener("click", async (event) => {
     return;
   }
 
+  const audioTriggerBtn = target?.closest("[data-private-audio-trigger]");
+  if (audioTriggerBtn instanceof HTMLButtonElement) {
+    const form = audioTriggerBtn.closest("form[data-private-conversation-form]");
+    const fileInput = form?.querySelector("[data-private-audio-input]");
+    if (fileInput instanceof HTMLInputElement) {
+      fileInput.click();
+    }
+    return;
+  }
+
+  const audioRemoveBtn = target?.closest("[data-private-audio-remove]");
+  if (audioRemoveBtn instanceof HTMLButtonElement) {
+    clearPrivateConversationPendingAudio(currentPrivateConversationArtistId);
+    refreshPrivateConversationComposerUi();
+    return;
+  }
+
+  const audioRecordBtn = target?.closest("[data-private-audio-record]");
+  if (audioRecordBtn instanceof HTMLButtonElement) {
+    if (isRecordingPrivateConversationAudioForArtist(currentPrivateConversationArtistId)) {
+      await stopPrivateConversationVoiceRecording({ persist: true });
+    } else {
+      await startPrivateConversationVoiceRecording();
+    }
+    return;
+  }
+
   const backBtn = target?.closest("[data-private-inbox-back]");
   if (backBtn) {
     resetPrivateInboxView();
@@ -6579,11 +7407,15 @@ privateInboxList?.addEventListener("submit", async (event) => {
   }
 
   const input = form.querySelector("[data-private-conversation-input]");
-  const messageText =
+  const rawMessageText =
     input instanceof HTMLTextAreaElement ? input.value.trim() : "";
+  const pendingAudio = getPrivateConversationPendingAudio(
+    currentPrivateConversationArtistId,
+  );
+  const messageText = pendingAudio?.source === "voice_recording" ? "" : rawMessageText;
 
-  if (!messageText) {
-    showTempMessage("Escreve uma mensagem antes de enviar.", "warning");
+  if (!messageText && !pendingAudio) {
+    showTempMessage("Escreve uma mensagem ou anexa um áudio antes de enviar.", "warning");
     return;
   }
 
@@ -6592,14 +7424,34 @@ privateInboxList?.addEventListener("submit", async (event) => {
     return;
   }
 
+  if (pendingAudio && Number(pendingAudio.sizeBytes || 0) > PRIVATE_AUDIO_MAX_BYTES) {
+    showTempMessage("O ficheiro de áudio deve ter no máximo 10 MB.", "warning");
+    return;
+  }
+
+  if (
+    pendingAudio?.source === "voice_recording" &&
+    Number.isFinite(pendingAudio.durationSeconds) &&
+    Number(pendingAudio.durationSeconds) > PRIVATE_VOICE_MAX_DURATION_SECONDS
+  ) {
+    showTempMessage("A mensagem de voz pode ter no máximo 1 minuto.", "warning");
+    return;
+  }
+
   try {
-    await submitPrivateMessage(currentPrivateConversationArtistId, messageText);
+    await submitPrivateMessage(
+      currentPrivateConversationArtistId,
+      messageText,
+      pendingAudio,
+    );
 
     if (input instanceof HTMLTextAreaElement) {
       input.value = "";
     }
 
     setPrivateConversationDraft(currentPrivateConversationArtistId, "");
+    clearPrivateConversationPendingAudio(currentPrivateConversationArtistId);
+    refreshPrivateConversationComposerUi();
 
     await fetchPrivateConversationMessages(currentPrivateConversationArtistId, {
       silent: true,
@@ -6627,6 +7479,26 @@ privateInboxList?.addEventListener("input", (event) => {
   setPrivateConversationDraft(currentPrivateConversationArtistId, target.value);
 
   autoResizePrivateConversationInput(target);
+});
+
+privateInboxList?.addEventListener("change", async (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement)) {
+    return;
+  }
+
+  if (!target.matches("[data-private-audio-input]")) {
+    return;
+  }
+
+  const file = target.files?.[0];
+  target.value = "";
+
+  if (!file) {
+    return;
+  }
+
+  await attachPrivateConversationAudioFile(file);
 });
 
 privateInboxList?.addEventListener("keydown", (event) => {

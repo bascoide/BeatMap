@@ -1479,11 +1479,21 @@ body.light-theme .municipio-label.distrito-hover {
   line-height: 1.4;
   white-space: pre-wrap;
   word-break: break-word;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .private-conversation-item.is-own .private-conversation-bubble {
   background: rgba(115, 49, 223, 0.2);
   border-color: rgba(115, 49, 223, 0.42);
+}
+
+.private-conversation-item.is-audio-only .private-conversation-bubble {
+  width: fit-content;
+  max-width: min(320px, 100%);
+  gap: 4px;
+  padding: 7px 8px;
 }
 
 .private-conversation-time {
@@ -1494,6 +1504,342 @@ body.light-theme .municipio-label.distrito-hover {
 
 .private-conversation-form {
   margin-top: 10px;
+}
+
+.private-conversation-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.private-conversation-tool-btn {
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-light);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.private-conversation-tool-btn:hover,
+.private-conversation-tool-btn:focus-visible {
+  border-color: var(--primary);
+  background: rgba(115, 49, 223, 0.16);
+  outline: none;
+}
+
+.private-conversation-tool-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.private-conversation-tool-btn.is-recording {
+  border-color: rgba(229, 57, 53, 0.65);
+  background: rgba(229, 57, 53, 0.16);
+  color: #ffd6d6;
+}
+
+.private-conversation-audio-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.private-conversation-audio-preview {
+  margin-bottom: 8px;
+}
+
+.private-conversation-audio-card {
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.private-conversation-audio-card.is-recording {
+  border-color: rgba(229, 57, 53, 0.4);
+  background: rgba(229, 57, 53, 0.08);
+}
+
+.private-conversation-audio-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.private-conversation-audio-card-top strong {
+  font-size: 12px;
+  line-height: 1.25;
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.private-conversation-audio-card-top span {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.private-conversation-audio-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.private-conversation-audio-remove {
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-light);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.private-conversation-audio-remove:hover,
+.private-conversation-audio-remove:focus-visible {
+  border-color: var(--primary);
+  background: rgba(115, 49, 223, 0.12);
+  outline: none;
+}
+
+.private-audio-player {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.private-audio-player.is-compact {
+  min-width: 250px;
+}
+
+.private-audio-element {
+  display: none;
+}
+
+.private-audio-toggle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(115, 49, 223, 0.35);
+  background: rgba(115, 49, 223, 0.14);
+  color: var(--text-light);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+
+.private-audio-toggle:hover,
+.private-audio-toggle:focus-visible {
+  border-color: var(--primary);
+  background: rgba(115, 49, 223, 0.22);
+  outline: none;
+}
+
+.private-audio-progress-wrap {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.private-audio-progress {
+  --private-audio-progress: 0%;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 8px;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  background: linear-gradient(
+    90deg,
+    var(--primary) 0%,
+    var(--primary) var(--private-audio-progress),
+    rgba(255, 255, 255, 0.14) var(--private-audio-progress),
+    rgba(255, 255, 255, 0.14) 100%
+  );
+}
+
+.private-audio-progress::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.private-audio-progress::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: var(--primary);
+  margin-top: -4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.private-audio-progress::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.private-audio-progress::-moz-range-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+.private-audio-progress::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: var(--primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.private-audio-times {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.private-audio-download {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-light);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+
+.private-audio-download-icon {
+  display: block;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.private-audio-download:hover,
+.private-audio-download:focus-visible {
+  border-color: var(--primary);
+  background: rgba(115, 49, 223, 0.12);
+  outline: none;
+}
+
+.private-conversation-audio-wave {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+  min-height: 22px;
+}
+
+.private-conversation-audio-wave span {
+  width: 5px;
+  border-radius: 999px;
+  background: rgba(255, 214, 214, 0.9);
+  animation: privateVoiceWave 0.9s ease-in-out infinite;
+}
+
+.private-conversation-audio-wave span:nth-child(1) {
+  height: 12px;
+}
+
+.private-conversation-audio-wave span:nth-child(2) {
+  height: 20px;
+  animation-delay: 0.12s;
+}
+
+.private-conversation-audio-wave span:nth-child(3) {
+  height: 15px;
+  animation-delay: 0.24s;
+}
+
+.private-conversation-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.private-conversation-audio-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.private-conversation-audio-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.2;
+  padding: 0;
+}
+
+.private-conversation-audio-caption span:first-child {
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+.private-conversation-item.is-own .private-conversation-audio-card,
+.private-conversation-item.is-own .private-conversation-audio-block {
+  margin-left: auto;
+}
+
+.private-conversation-item.is-own .private-conversation-audio-card {
+  border-color: rgba(115, 49, 223, 0.35);
+  background: rgba(115, 49, 223, 0.12);
+}
+
+body.light-theme .private-conversation-audio-card {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+body.light-theme .private-conversation-audio-card.is-recording {
+  background: rgba(229, 57, 53, 0.08);
+}
+
+body.light-theme .private-audio-progress {
+  background: linear-gradient(
+    90deg,
+    var(--primary) 0%,
+    var(--primary) var(--private-audio-progress),
+    rgba(0, 0, 0, 0.12) var(--private-audio-progress),
+    rgba(0, 0, 0, 0.12) 100%
+  );
 }
 
 .private-conversation-input-wrap {
@@ -1547,6 +1893,19 @@ body.light-theme .municipio-label.distrito-hover {
   font-size: 11px;
   border-radius: 8px;
   min-height: 26px;
+}
+
+@keyframes privateVoiceWave {
+  0%,
+  100% {
+    transform: scaleY(0.65);
+    opacity: 0.45;
+  }
+
+  50% {
+    transform: scaleY(1.1);
+    opacity: 1;
+  }
 }
 
 .account-btn {

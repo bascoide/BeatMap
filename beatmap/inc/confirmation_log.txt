@@ -39,3 +39,7 @@
 2026-03-05 16:20:34 - Email enviado com SUCESSO para: aurea@gmail.com (Aurea) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=0f9bbfe6b74e50e40c1cf9bc8ee60bef
 2026-03-12 11:31:44 - Email enviado com SUCESSO para: aurea@gmail.com (aurea) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=0d09da4683db1b84342ec882184b8c3d
 2026-03-12 12:42:26 - Email enviado com SUCESSO para: aurea@gmail.com (Aurea) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=cdbbdfaec4dffcbc9ba91b562341d90b
+2026-03-16 17:02:32 - Email enviado com SUCESSO para: ricardo@gmail.com (Ricardo) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=93750a6a4aab3de904777d825c266b3b
+2026-03-19 16:56:17 - Email enviado com SUCESSO para: aurea@gmail.com (Aurea) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=e804c12524ec1d405197d5139bc7e894
+2026-03-24 17:44:35 - Email enviado com SUCESSO para: aurea@gmail.com (Aurea) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=f4ae83903280dc46e18a2895455616fa
+2026-03-26 16:46:05 - Email enviado com SUCESSO para: djcc@gmail.com (Dj CC) - Link: https://beatmap.site/beatmap/email/confirm_email.php?token=f9d3b675ba3d3cb6dfae15d92b9c098e

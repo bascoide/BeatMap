@@ -436,12 +436,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <button type="submit" name="change_password" class="btn-submit">Alterar Senha</button>
             </form>
-
-            <div class="danger-zone">
-                <h4>Zona de Perigo</h4>
-                <p>Apagar a sua conta é uma ação permanente e irreversível. Todos os seus dados serão removidos.</p>
-                <button class="btn-submit btn-danger" onclick="alert('Funcionalidade a ser implementada.')">Apagar Conta</button>
-            </div>
         </div>
     </div>
     </main>

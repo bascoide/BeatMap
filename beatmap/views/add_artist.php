@@ -29,7 +29,11 @@ if (!function_exists('normalizeCouncilName')) {
     {
         $normalized = trim(preg_replace('/\s+/u', ' ', $name));
         $normalized = preg_replace('/\s+Municipality$/iu', '', $normalized);
-        return trim($normalized);
+        $normalized = trim($normalized);
+        // Translate known English GeoNames council names to Portuguese
+        $councilMap = ['lisbon' => 'Lisboa'];
+        $lower = function_exists('mb_strtolower') ? mb_strtolower($normalized, 'UTF-8') : strtolower($normalized);
+        return $councilMap[$lower] ?? $normalized;
     }
 }
 
@@ -3053,7 +3057,12 @@ document.addEventListener("DOMContentLoaded", function() {
     const debounce = (fn, delay) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); }; };
     const locationForm = form;
 
-    const normalizeCouncilName = (name) => String(name || '').replace(/\s+Municipality$/i, '').trim();
+    const normalizeCouncilName = (name) => {
+        const stripped = String(name || '').replace(/\s+Municipality$/i, '').trim();
+        if (!stripped) return '';
+        const councilNameMapPt = { 'lisbon': 'Lisboa' };
+        return councilNameMapPt[stripped.toLowerCase()] || stripped;
+    };
     const normalizeDistrictKey = (name) => String(name || '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')

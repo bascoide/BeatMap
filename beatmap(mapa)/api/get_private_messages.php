@@ -53,7 +53,13 @@ function ensurePrivateMessagesTable(PDO $pdo): void {
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             sender_artist_id INT NOT NULL,
             recipient_artist_id INT NOT NULL,
-            message VARCHAR(255) NOT NULL,
+            message VARCHAR(255) NULL DEFAULT NULL,
+            audio_path VARCHAR(255) NULL DEFAULT NULL,
+            audio_original_name VARCHAR(255) NULL DEFAULT NULL,
+            audio_mime_type VARCHAR(100) NULL DEFAULT NULL,
+            audio_size_bytes INT UNSIGNED NULL DEFAULT NULL,
+            audio_duration_seconds DECIMAL(6,2) NULL DEFAULT NULL,
+            audio_source VARCHAR(32) NULL DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             read_at TIMESTAMP NULL DEFAULT NULL,
             KEY idx_private_messages_recipient (recipient_artist_id, created_at),
@@ -68,6 +74,46 @@ function ensurePrivateMessagesTable(PDO $pdo): void {
                 ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
+}
+
+function ensurePrivateMessagesAudioColumns(PDO $pdo): void {
+    $stmt = $pdo->query('SHOW COLUMNS FROM private_messages');
+    if (!$stmt) {
+        return;
+    }
+
+    $columns = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $field = (string)($row['Field'] ?? '');
+        if ($field !== '') {
+            $columns[$field] = $row;
+        }
+    }
+
+    if (!isset($columns['message'])) {
+        $pdo->exec('ALTER TABLE private_messages ADD COLUMN message VARCHAR(255) NULL DEFAULT NULL AFTER recipient_artist_id');
+    } else {
+        $messageType = strtolower((string)($columns['message']['Type'] ?? ''));
+        $messageNullable = strtoupper((string)($columns['message']['Null'] ?? 'NO')) === 'YES';
+        if ($messageType !== 'varchar(255)' || !$messageNullable) {
+            $pdo->exec('ALTER TABLE private_messages MODIFY COLUMN message VARCHAR(255) NULL DEFAULT NULL');
+        }
+    }
+
+    $definitions = [
+        'audio_path' => 'ALTER TABLE private_messages ADD COLUMN audio_path VARCHAR(255) NULL DEFAULT NULL AFTER message',
+        'audio_original_name' => 'ALTER TABLE private_messages ADD COLUMN audio_original_name VARCHAR(255) NULL DEFAULT NULL AFTER audio_path',
+        'audio_mime_type' => 'ALTER TABLE private_messages ADD COLUMN audio_mime_type VARCHAR(100) NULL DEFAULT NULL AFTER audio_original_name',
+        'audio_size_bytes' => 'ALTER TABLE private_messages ADD COLUMN audio_size_bytes INT UNSIGNED NULL DEFAULT NULL AFTER audio_mime_type',
+        'audio_duration_seconds' => 'ALTER TABLE private_messages ADD COLUMN audio_duration_seconds DECIMAL(6,2) NULL DEFAULT NULL AFTER audio_size_bytes',
+        'audio_source' => 'ALTER TABLE private_messages ADD COLUMN audio_source VARCHAR(32) NULL DEFAULT NULL AFTER audio_duration_seconds',
+    ];
+
+    foreach ($definitions as $column => $sql) {
+        if (!isset($columns[$column])) {
+            $pdo->exec($sql);
+        }
+    }
 }
 
 function ensurePrivateMessagesIndexes(PDO $pdo): void {
@@ -152,6 +198,7 @@ try {
     ]);
 
     ensurePrivateMessagesTable($pdo);
+    ensurePrivateMessagesAudioColumns($pdo);
     ensurePrivateMessagesIndexes($pdo);
     $artistImageColumn = resolveArtistImageColumn($pdo);
     $otherArtistImageSelect = $artistImageColumn !== ''
@@ -203,10 +250,16 @@ try {
 
     if ($includeMessages && $conversationWith > 0) {
         $stmt = $pdo->prepare(
-            'SELECT recent.id, recent.sender_artist_id, recent.recipient_artist_id, recent.message, recent.created_at,
+                 'SELECT recent.id, recent.sender_artist_id, recent.recipient_artist_id, recent.message,
+                      recent.audio_path, recent.audio_original_name, recent.audio_mime_type,
+                      recent.audio_size_bytes, recent.audio_duration_seconds, recent.audio_source,
+                      recent.created_at,
                     recent.sender_name, recent.recipient_name, recent.other_artist_id, recent.other_artist_name
              FROM (
-                SELECT pm.id, pm.sender_artist_id, pm.recipient_artist_id, pm.message, pm.created_at,
+                  SELECT pm.id, pm.sender_artist_id, pm.recipient_artist_id, pm.message,
+                      pm.audio_path, pm.audio_original_name, pm.audio_mime_type,
+                      pm.audio_size_bytes, pm.audio_duration_seconds, pm.audio_source,
+                      pm.created_at,
                        s.name AS sender_name,
                        r.name AS recipient_name,
                        CASE
@@ -255,6 +308,8 @@ try {
             $row['sender_artist_id'] = (int)($row['sender_artist_id'] ?? 0);
             $row['recipient_artist_id'] = (int)($row['recipient_artist_id'] ?? 0);
             $row['other_artist_id'] = (int)($row['other_artist_id'] ?? 0);
+            $row['audio_size_bytes'] = isset($row['audio_size_bytes']) ? (int)$row['audio_size_bytes'] : null;
+            $row['audio_duration_seconds'] = isset($row['audio_duration_seconds']) ? (float)$row['audio_duration_seconds'] : null;
         }
         unset($row);
     } elseif ($includeMessages && $groupByArtist) {
@@ -266,7 +321,15 @@ try {
                     pm.sender_artist_id AS last_sender_artist_id,
                     pm.recipient_artist_id AS last_recipient_artist_id,
                     pm.message AS last_message,
+                    pm.audio_path AS last_audio_path,
+                    pm.audio_source AS last_audio_source,
                     pm.created_at AS last_created_at,
+                    CASE
+                        WHEN COALESCE(pm.message, \'\') <> \'\' THEN pm.message
+                        WHEN pm.audio_path IS NOT NULL AND pm.audio_source = \'voice_recording\' THEN \'Mensagem de voz\'
+                        WHEN pm.audio_path IS NOT NULL THEN \'Ficheiro de áudio\'
+                        ELSE \'\'
+                    END AS last_message_preview,
                     (
                         SELECT COUNT(*)
                         FROM private_messages pu
@@ -316,7 +379,10 @@ try {
         unset($row);
     } elseif ($includeMessages) {
         $stmt = $pdo->prepare(
-            'SELECT pm.id, pm.sender_artist_id, pm.recipient_artist_id, pm.message, pm.created_at,
+                'SELECT pm.id, pm.sender_artist_id, pm.recipient_artist_id, pm.message,
+                    pm.audio_path, pm.audio_original_name, pm.audio_mime_type,
+                    pm.audio_size_bytes, pm.audio_duration_seconds, pm.audio_source,
+                    pm.created_at,
                     s.name AS sender_name,
                     r.name AS recipient_name,
                     CASE
@@ -355,6 +421,8 @@ try {
             $row['sender_artist_id'] = (int)($row['sender_artist_id'] ?? 0);
             $row['recipient_artist_id'] = (int)($row['recipient_artist_id'] ?? 0);
             $row['other_artist_id'] = (int)($row['other_artist_id'] ?? 0);
+            $row['audio_size_bytes'] = isset($row['audio_size_bytes']) ? (int)$row['audio_size_bytes'] : null;
+            $row['audio_duration_seconds'] = isset($row['audio_duration_seconds']) ? (float)$row['audio_duration_seconds'] : null;
         }
         unset($row);
     }
